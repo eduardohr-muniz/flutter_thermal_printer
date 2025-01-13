@@ -2,11 +2,14 @@
 
 import 'dart:async';
 import 'dart:developer';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_thermal_printer/flutter_thermal_printer.dart';
 import 'package:flutter_thermal_printer/utils/printer.dart';
+import 'package:flutter_thermal_printer_example/image_utils.dart';
+import 'package:image/image.dart' as img;
 
 void main() {
   runApp(const MyApp());
@@ -36,13 +39,11 @@ class _MyAppState extends State<MyApp> {
       ConnectionType.USB,
       // ConnectionType.BLE,
     ]);
-    _devicesStreamSubscription = _flutterThermalPrinterPlugin.devicesStream
-        .listen((List<Printer> event) {
+    _devicesStreamSubscription = _flutterThermalPrinterPlugin.devicesStream.listen((List<Printer> event) {
       log(event.map((e) => e.name).toList().toString());
       setState(() {
         printers = event;
-        printers.removeWhere(
-            (element) => element.name == null || element.name == '');
+        printers.removeWhere((element) => element.name == null || element.name == '');
       });
     });
   }
@@ -114,8 +115,7 @@ class _MyAppState extends State<MyApp> {
                         final generator = Generator(PaperSize.mm80, profile);
                         List<int> bytes = [];
                         if (context.mounted) {
-                          bytes = await FlutterThermalPrinter.instance
-                              .screenShotWidget(
+                          bytes = await FlutterThermalPrinter.instance.screenShotWidget(
                             context,
                             generator: generator,
                             widget: receiptWidget("Network"),
@@ -132,8 +132,7 @@ class _MyAppState extends State<MyApp> {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () async {
-                        final service = FlutterThermalPrinterNetwork(_ip,
-                            port: int.parse(_port));
+                        final service = FlutterThermalPrinterNetwork(_ip, port: int.parse(_port));
                         await service.connect();
                         final bytes = await _generateReceipt();
                         await service.printTicket(bytes);
@@ -183,26 +182,46 @@ class _MyAppState extends State<MyApp> {
                     return ListTile(
                       onTap: () async {
                         if (printers[index].isConnected ?? false) {
-                          await _flutterThermalPrinterPlugin
-                              .disconnect(printers[index]);
+                          await _flutterThermalPrinterPlugin.disconnect(printers[index]);
                         } else {
-                          await _flutterThermalPrinterPlugin
-                              .connect(printers[index]);
+                          await _flutterThermalPrinterPlugin.connect(printers[index]);
                         }
                       },
                       title: Text(printers[index].name ?? 'No Name'),
-                      subtitle:
-                          Text("Connected: ${printers[index].isConnected}"),
+                      subtitle: Text("Connected: ${printers[index].isConnected}"),
                       trailing: IconButton(
                         icon: const Icon(Icons.connect_without_contact),
                         onPressed: () async {
-                          await _flutterThermalPrinterPlugin.printWidget(
-                            context,
-                            printer: printers[index],
-                            widget: receiptWidget(
-                              printers[index].connectionTypeString,
-                            ),
-                          );
+                          // final profile = await CapabilityProfile.load();
+                          // final generator = Generator(PaperSize.mm80, profile);
+                          // List<int> bytes = [];
+                          // if (context.mounted) {
+                          //   bytes = await FlutterThermalPrinter.instance.screenShotWidget(
+                          //     context,
+                          //     generator: generator,
+                          //     widget: receiptWidget("Network"),
+                          //   );
+                          //   bytes += generator.reset();
+                          //   bytes += generator.text(
+                          //     "Teste Network print",
+                          //     styles: const PosStyles(
+                          //       bold: true,
+                          //       height: PosTextSize.size3,
+                          //       width: PosTextSize.size3,
+                          //     ),
+                          //   );
+                          //   bytes += generator.cut();
+                          //   await _flutterThermalPrinterPlugin.printData(printers[index], bytes);
+                          // }
+                          await _printReceiveTest(_flutterThermalPrinterPlugin, printers[index]);
+                          // await _flutterThermalPrinterPlugin.printWidget(
+                          //   context,
+                          //   printer: printers[index],
+                          //   cutAfterPrinted: false,
+                          //   widget: receiptWidget(
+                          //     printers[index].connectionTypeString,
+                          //   ),
+                          // );
                         },
                       ),
                     );
@@ -234,7 +253,7 @@ class _MyAppState extends State<MyApp> {
 
   Widget receiptWidget(String printerType) {
     return SizedBox(
-      width: 380,
+      width: 500,
       child: Material(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -274,8 +293,7 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
-Widget _buildReceiptRow(String leftText, String rightText,
-    {bool isBold = false}) {
+Widget _buildReceiptRow(String leftText, String rightText, {bool isBold = false}) {
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 4.0),
     child: Row(
@@ -283,17 +301,131 @@ Widget _buildReceiptRow(String leftText, String rightText,
       children: [
         Text(
           leftText,
-          style: TextStyle(
-              fontSize: 16,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal),
+          style: TextStyle(fontSize: 16, fontWeight: isBold ? FontWeight.bold : FontWeight.normal),
         ),
         Text(
           rightText,
-          style: TextStyle(
-              fontSize: 16,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal),
+          style: TextStyle(fontSize: 16, fontWeight: isBold ? FontWeight.bold : FontWeight.normal),
         ),
       ],
     ),
   );
+}
+
+/// Aplica a binarização (thresholding) para converter a imagem em preto-e-branco
+
+/// Aplica a binarização (thresholding) para converter a imagem para preto e branco
+
+img.Image applyThreshold(img.Image grayscaleImage, int threshold) {
+  for (int y = 0; y < grayscaleImage.height; y++) {
+    for (int x = 0; x < grayscaleImage.width; x++) {
+      // Obtém o valor de cinza do pixel (intensidade 0-255)
+      final int grayscaleValue = (grayscaleImage.getPixel(x, y).r).toInt();
+
+      // Define o pixel como branco ou preto com base no valor do threshold
+      if (grayscaleValue > threshold) {
+        // Define branco
+        grayscaleImage.setPixel(x, y, img.ColorRgb8(255, 255, 255)); // Branco
+      } else {
+        // Define preto
+        grayscaleImage.setPixel(x, y, img.ColorRgb8(0, 0, 0)); // Preto
+      }
+    }
+  }
+  return grayscaleImage;
+}
+
+Future<void> _printReceiveTest(FlutterThermalPrinter service, Printer printer) async {
+  try {
+    List<int> bytes = [];
+
+    // Carrega o perfil da impressora
+    final profile = await CapabilityProfile.load();
+    final generator = Generator(PaperSize.mm80, profile);
+
+    // Reseta a configuração da impressora
+    bytes += generator.reset();
+
+    // Adiciona texto inicial
+    bytes += generator.text(
+      "Teste Network Print",
+      styles: const PosStyles(
+        bold: true,
+        height: PosTextSize.size3,
+        width: PosTextSize.size3,
+      ),
+    );
+
+    // Carrega a imagem da pasta `assets`
+    final ByteData data = await rootBundle.load('assets/desenho.png');
+    final Uint8List imageBytes = data.buffer.asUint8List();
+
+    // Decodifica a imagem carregada
+    final img.Image originalImage = img.decodeImage(imageBytes)!;
+
+    // Redimensiona a imagem para a largura máxima suportada pela impressora
+    const int maxWidth = 576; // Largura máxima (80mm em pixels)
+    final img.Image resizedImage = img.copyResize(
+      originalImage,
+      width: maxWidth,
+      interpolation: img.Interpolation.linear, // Interpolação linear
+    );
+
+    // Converte para escala de cinza
+    // final img.Image grayscaleImage = img.grayscale(resizedImage);
+
+    // Aplica a binarização (threshold) para conversão em preto e branco
+    // final img.Image binarizedImage = applyThreshold(grayscaleImage, 128); // Threshold padrão de 128
+
+    // Salva a imagem binarizada no diretório `assets/saved`
+    await _saveImageInAssets(resizedImage);
+
+    // Adiciona a imagem processada à fila de impressão
+    bytes += generator.imageRaster(
+      resizedImage,
+      imageFn: PosImageFn.bitImageRaster,
+      highDensityVertical: true,
+      highDensityHorizontal: true,
+    );
+
+    // Corte e avanço do papel
+    bytes += generator.feed(2);
+    bytes += generator.cut();
+
+    // Envia os dados para a impressora
+    await service.printData(printer, bytes, longData: true);
+  } catch (e) {
+    print('Erro ao imprimir: $e');
+  }
+}
+
+/// Salva a imagem no diretório "assets/saved" do seu projeto
+Future<void> _saveImageInAssets(img.Image image) async {
+  try {
+    // Diretório onde a imagem será salva (subpasta do seu projeto)
+    const String assetsSubPath = 'assets/saved';
+
+    // Cria o diretório, se não existir
+    final Directory directory = Directory(assetsSubPath);
+    if (!directory.existsSync()) {
+      directory.createSync(recursive: true); // Cria subdiretórios, se necessário
+    }
+
+    // Nome único para o arquivo baseado no timestamp
+    final String fileName = 'imagem_processada_${DateTime.now().millisecondsSinceEpoch}.png';
+
+    // Caminho completo onde o arquivo será salvo
+    final String filePath = '${directory.path}/$fileName';
+
+    // Converte a imagem processada para bytes no formato PNG
+    final List<int> encodedImage = img.encodePng(image);
+
+    // Salva a imagem como arquivo no disco
+    final File file = File(filePath);
+    await file.writeAsBytes(encodedImage);
+
+    print('Imagem salva com sucesso no diretório: $filePath');
+  } catch (e) {
+    print('Erro ao salvar a imagem no diretório assets/saved: $e');
+  }
 }
