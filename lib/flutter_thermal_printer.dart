@@ -13,8 +13,7 @@ import 'package:screenshot/screenshot.dart';
 import 'Others/other_printers_manager.dart';
 
 export 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
-export 'package:flutter_blue_plus/flutter_blue_plus.dart'
-    show BluetoothDevice, BluetoothConnectionState;
+export 'package:flutter_blue_plus/flutter_blue_plus.dart' show BluetoothDevice, BluetoothConnectionState;
 export 'package:flutter_thermal_printer/network/network_printer.dart';
 
 class FlutterThermalPrinter {
@@ -74,10 +73,7 @@ class FlutterThermalPrinter {
 
   Future<void> getPrinters({
     Duration refreshDuration = const Duration(seconds: 2),
-    List<ConnectionType> connectionTypes = const [
-      ConnectionType.USB,
-      ConnectionType.BLE
-    ],
+    List<ConnectionType> connectionTypes = const [ConnectionType.USB, ConnectionType.BLE],
     bool androidUsesFineLocation = false,
   }) async {
     if (Platform.isWindows) {
@@ -136,8 +132,7 @@ class FlutterThermalPrinter {
     Generator? generator,
   }) async {
     final controller = ScreenshotController();
-    final image = await controller.captureFromLongWidget(widget,
-        pixelRatio: View.of(context).devicePixelRatio, delay: delay);
+    final image = await controller.captureFromLongWidget(widget, pixelRatio: View.of(context).devicePixelRatio, delay: delay);
     Generator? generator0;
     if (generator == null) {
       final profile = await CapabilityProfile.load();
@@ -215,45 +210,39 @@ class FlutterThermalPrinter {
       pixelRatio: View.of(context).devicePixelRatio,
       delay: delay,
     );
-    if (Platform.isWindows) {
-      await printData(
+
+    CapabilityProfile profile0 = profile ?? await CapabilityProfile.load();
+    final ticket = Generator(paperSize, profile0);
+    img.Image? imagebytes = img.decodeImage(image);
+    imagebytes = _buildImageRasterAvaliable(imagebytes!);
+    final totalheight = imagebytes.height;
+    final totalwidth = imagebytes.width;
+    final timestoCut = totalheight ~/ 30;
+    for (var i = 0; i < timestoCut; i++) {
+      final croppedImage = img.copyCrop(
+        imagebytes,
+        x: 0,
+        y: i * 30,
+        width: totalwidth,
+        height: 30,
+      );
+      final raster = ticket.image(
+        croppedImage,
+        // imageFn: PosImageFn.bitImageRaster,
+      );
+      await FlutterThermalPrinter.instance.printData(
         printer,
-        image.toList(),
+        raster,
         longData: true,
       );
-    } else {
-      CapabilityProfile profile0 = profile ?? await CapabilityProfile.load();
-      final ticket = Generator(paperSize, profile0);
-      img.Image? imagebytes = img.decodeImage(image);
-      imagebytes = _buildImageRasterAvaliable(imagebytes!);
-      final totalheight = imagebytes.height;
-      final totalwidth = imagebytes.width;
-      final timestoCut = totalheight ~/ 30;
-      for (var i = 0; i < timestoCut; i++) {
-        final croppedImage = img.copyCrop(
-          imagebytes,
-          x: 0,
-          y: i * 30,
-          width: totalwidth,
-          height: 30,
-        );
-        final raster = ticket.imageRaster(
-          croppedImage,
-          imageFn: PosImageFn.bitImageRaster,
-        );
-        await FlutterThermalPrinter.instance.printData(
-          printer,
-          raster,
-          longData: true,
-        );
-      }
-      if (cutAfterPrinted) {
-        await FlutterThermalPrinter.instance.printData(
-          printer,
-          ticket.cut(),
-          longData: true,
-        );
-      }
+    }
+    if (cutAfterPrinted) {
+      await FlutterThermalPrinter.instance.printData(
+        printer,
+        ticket.cut(),
+        longData: true,
+      );
     }
   }
 }
+// }
