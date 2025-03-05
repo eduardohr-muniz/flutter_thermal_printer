@@ -22,7 +22,10 @@ class FlutterThermalPrinter {
   static FlutterThermalPrinter? _instance;
 
   static FlutterThermalPrinter get instance {
-    FlutterBluePlus.setLogLevel(LogLevel.debug);
+    if (Platform.isWindows == false) {
+      // flutter_blue_plus dont have support for windows
+      FlutterBluePlus.setLogLevel(LogLevel.debug);
+    }
     _instance ??= FlutterThermalPrinter._();
     return _instance!;
   }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
@@ -36,6 +37,11 @@ class WindowPrinterManager {
 
   // Stop scanning for BLE devices
   Future<void> stopscan() async {
+    if (Platform.isWindows) {
+      // Windows does not have SUPPORT for BLE
+      subscription?.cancel();
+      return;
+    }
     if (!isInitialized) {
       throw Exception('WindowBluetoothManager is not initialized');
     }
