@@ -130,12 +130,16 @@ class FlutterThermalPrinter {
     BuildContext context, {
     required Widget widget,
     Duration delay = const Duration(milliseconds: 100),
-    int? customWidth,
+    int? columns,
     PaperSize paperSize = PaperSize.mm80,
     Generator? generator,
   }) async {
     final controller = ScreenshotController();
-    final image = await controller.captureFromLongWidget(widget, pixelRatio: View.of(context).devicePixelRatio, delay: delay);
+    final image = await controller.captureFromLongWidget(
+      widget,
+      pixelRatio: View.of(context).devicePixelRatio * 1.5, // Ajuste a resolução
+      delay: delay,
+    );
     Generator? generator0;
     if (generator == null) {
       final profile = await CapabilityProfile.load();
@@ -146,25 +150,43 @@ class FlutterThermalPrinter {
     }
     img.Image? imagebytes = img.decodeImage(image);
 
-    if (customWidth != null) {
-      final width = _makeDivisibleBy8(customWidth);
-      imagebytes = img.copyResize(imagebytes!, width: width);
+    if (columns == null) {
+      if (paperSize == PaperSize.mm80) {
+        columns = 550;
+      }
+      if (paperSize == PaperSize.mm72) {
+        columns = 480;
+      }
+      if (paperSize == PaperSize.mm58) {
+        columns = 320;
+      }
     }
 
-    imagebytes = _buildImageRasterAvaliable(imagebytes!);
+    final width = _makeDivisibleBy8(columns!);
+    final aspectRatio = imagebytes!.height / imagebytes.width;
+    final newHeight = (width * aspectRatio).round();
+    imagebytes = img.copyResize(
+      imagebytes,
+      width: width,
+      height: newHeight,
+      interpolation: img.Interpolation.nearest,
+    );
 
+    imagebytes = _buildImageRasterAvaliable(imagebytes);
     imagebytes = img.grayscale(imagebytes);
+
     final totalheight = imagebytes.height;
     final totalwidth = imagebytes.width;
-    final timestoCut = totalheight ~/ 30;
+    const sliceHeight = 24;
+    final timestoCut = (totalheight / sliceHeight).ceil();
     List<int> bytes = [];
     for (var i = 0; i < timestoCut; i++) {
       final croppedImage = img.copyCrop(
         imagebytes,
         x: 0,
-        y: i * 30,
+        y: i * sliceHeight,
         width: totalwidth,
-        height: 30,
+        height: sliceHeight,
       );
       final raster = generator0.imageRaster(
         croppedImage,

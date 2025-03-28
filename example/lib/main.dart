@@ -1,5 +1,3 @@
-// ignore_for_file: depend_on_referenced_packages
-
 import 'dart:async';
 import 'dart:developer';
 import 'dart:io';
@@ -9,6 +7,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_thermal_printer/flutter_thermal_printer.dart';
 import 'package:flutter_thermal_printer/utils/printer.dart';
 import 'package:flutter_thermal_printer_example/image_utils.dart';
+import 'package:flutter_thermal_printer_example/process_image_bytes.dart';
+import 'package:flutter_thermal_printer_example/xml_danfe_raw_bytes.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image/image.dart' as img;
 
 void main() {
@@ -32,12 +33,10 @@ class _MyAppState extends State<MyApp> {
 
   StreamSubscription<List<Printer>>? _devicesStreamSubscription;
 
-  // Get Printer List
   void startScan() async {
     _devicesStreamSubscription?.cancel();
     await _flutterThermalPrinterPlugin.getPrinters(connectionTypes: [
       ConnectionType.USB,
-      // ConnectionType.BLE,
     ]);
     _devicesStreamSubscription = _flutterThermalPrinterPlugin.devicesStream.listen((List<Printer> event) {
       log(event.map((e) => e.name).toList().toString());
@@ -136,6 +135,8 @@ class _MyAppState extends State<MyApp> {
                         await service.connect();
                         final bytes = await _generateReceipt();
                         await service.printTicket(bytes);
+                        final danfeBytes = await _generateDanfe();
+                        await service.printTicket(danfeBytes);
                         await service.disconnect();
                       },
                       child: const Text('Test network printer widget'),
@@ -156,7 +157,6 @@ class _MyAppState extends State<MyApp> {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
-                        // startScan();
                         startScan();
                       },
                       child: const Text('Get Printers'),
@@ -166,7 +166,6 @@ class _MyAppState extends State<MyApp> {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
-                        // startScan();
                         stopScan();
                       },
                       child: const Text('Stop Scan'),
@@ -192,36 +191,7 @@ class _MyAppState extends State<MyApp> {
                       trailing: IconButton(
                         icon: const Icon(Icons.connect_without_contact),
                         onPressed: () async {
-                          // final profile = await CapabilityProfile.load();
-                          // final generator = Generator(PaperSize.mm80, profile);
-                          // List<int> bytes = [];
-                          // if (context.mounted) {
-                          //   bytes = await FlutterThermalPrinter.instance.screenShotWidget(
-                          //     context,
-                          //     generator: generator,
-                          //     widget: receiptWidget("Network"),
-                          //   );
-                          //   bytes += generator.reset();
-                          //   bytes += generator.text(
-                          //     "Teste Network print",
-                          //     styles: const PosStyles(
-                          //       bold: true,
-                          //       height: PosTextSize.size3,
-                          //       width: PosTextSize.size3,
-                          //     ),
-                          //   );
-                          //   bytes += generator.cut();
-                          //   await _flutterThermalPrinterPlugin.printData(printers[index], bytes);
-                          // }
-                          await _printReceiveTest(_flutterThermalPrinterPlugin, printers[index]);
-                          // await _flutterThermalPrinterPlugin.printWidget(
-                          //   context,
-                          //   printer: printers[index],
-                          //   cutAfterPrinted: false,
-                          //   widget: receiptWidget(
-                          //     printers[index].connectionTypeString,
-                          //   ),
-                          // );
+                          await _printReceiveTest(_flutterThermalPrinterPlugin, printers[index], context);
                         },
                       ),
                     );
@@ -250,177 +220,127 @@ class _MyAppState extends State<MyApp> {
     bytes += generator.cut();
     return bytes;
   }
-
-  Widget receiptWidget(String printerType) {
-    return SizedBox(
-      width: 500,
-      child: Material(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Center(
-                child: Text(
-                  'FLUTTER THERMAL PRINTER',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const Divider(thickness: 2),
-              const SizedBox(height: 10),
-              _buildReceiptRow('Item', 'Price'),
-              const Divider(),
-              _buildReceiptRow('Apple', '\$1.00'),
-              _buildReceiptRow('Banana', '\$0.50'),
-              _buildReceiptRow('Orange', '\$0.75'),
-              const Divider(thickness: 2),
-              _buildReceiptRow('Total', '\$2.25', isBold: true),
-              const SizedBox(height: 20),
-              _buildReceiptRow('Printer Type', printerType),
-              const SizedBox(height: 50),
-              const Center(
-                child: Text(
-                  'Thank you for your purchase!',
-                  style: TextStyle(fontSize: 16, fontStyle: FontStyle.italic),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 Widget _buildReceiptRow(String leftText, String rightText, {bool isBold = false}) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4.0),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          leftText,
-          style: TextStyle(fontSize: 16, fontWeight: isBold ? FontWeight.bold : FontWeight.normal),
-        ),
-        Text(
-          rightText,
-          style: TextStyle(fontSize: 16, fontWeight: isBold ? FontWeight.bold : FontWeight.normal),
-        ),
-      ],
+  return DefaultTextStyle(
+    style: GoogleFonts.robotoMono(color: Colors.black),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            leftText,
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+          Text(
+            rightText,
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ],
+      ),
     ),
   );
 }
 
-/// Aplica a binarização (thresholding) para converter a imagem em preto-e-branco
-
-/// Aplica a binarização (thresholding) para converter a imagem para preto e branco
-
 img.Image applyThreshold(img.Image grayscaleImage, int threshold) {
   for (int y = 0; y < grayscaleImage.height; y++) {
     for (int x = 0; x < grayscaleImage.width; x++) {
-      // Obtém o valor de cinza do pixel (intensidade 0-255)
       final int grayscaleValue = (grayscaleImage.getPixel(x, y).r).toInt();
 
-      // Define o pixel como branco ou preto com base no valor do threshold
       if (grayscaleValue > threshold) {
-        // Define branco
-        grayscaleImage.setPixel(x, y, img.ColorRgb8(255, 255, 255)); // Branco
+        grayscaleImage.setPixel(x, y, img.ColorRgb8(255, 255, 255));
       } else {
-        // Define preto
-        grayscaleImage.setPixel(x, y, img.ColorRgb8(0, 0, 0)); // Preto
+        grayscaleImage.setPixel(x, y, img.ColorRgb8(0, 0, 0));
       }
     }
   }
   return grayscaleImage;
 }
 
-Future<void> _printReceiveTest(FlutterThermalPrinter service, Printer printer) async {
+Future<void> _printReceiveTest(FlutterThermalPrinter service, Printer printer, BuildContext context) async {
   try {
-    List<int> bytes = [];
+    // List<int> bytes = [];
 
-    // Carrega o perfil da impressora
     final profile = await CapabilityProfile.load();
     final generator = Generator(PaperSize.mm80, profile);
 
-    // Reseta a configuração da impressora
-    bytes += generator.reset();
+    // bytes += generator.reset();
 
-    // Adiciona texto inicial
-    bytes += generator.text(
-      "Teste Network Print",
-      styles: const PosStyles(
-        bold: true,
-        height: PosTextSize.size3,
-        width: PosTextSize.size3,
-      ),
+    // bytes += generator.text(
+    //   "Teste Network Print",
+    //   styles: const PosStyles(
+    //     bold: true,
+    //     height: PosTextSize.size3,
+    //     width: PosTextSize.size3,
+    //   ),
+    // );
+
+    // final ByteData data = await rootBundle.load('assets/desenho.png');
+    // final Uint8List imageBytes = data.buffer.asUint8List();
+
+    // final img.Image originalImage = img.decodeImage(imageBytes)!;
+
+    // const int maxWidth = 576;
+    // final img.Image resizedImage = img.copyResize(
+    //   originalImage,
+    //   width: maxWidth,
+    //   interpolation: img.Interpolation.linear,
+    // );
+
+    // await _saveImageInAssets(resizedImage);
+
+    // bytes += generator.imageRaster(
+    //   resizedImage,
+    //   imageFn: PosImageFn.bitImageRaster,
+    //   highDensityVertical: true,
+    //   highDensityHorizontal: true,
+    // );
+
+    // bytes += generator.feed(2);
+    // bytes += generator.cut();
+
+    // await service.printData(printer, bytes, longData: true);
+    // final danfeBytes = await _generateDanfe();
+    // await service.printData(printer, danfeBytes, longData: true);
+    List<int> bytesScreen = await FlutterThermalPrinter.instance.screenShotWidget(
+      context,
+      generator: generator,
+      widget: receiptWidget("Network"),
     );
-
-    // Carrega a imagem da pasta `assets`
-    final ByteData data = await rootBundle.load('assets/desenho.png');
-    final Uint8List imageBytes = data.buffer.asUint8List();
-
-    // Decodifica a imagem carregada
-    final img.Image originalImage = img.decodeImage(imageBytes)!;
-
-    // Redimensiona a imagem para a largura máxima suportada pela impressora
-    const int maxWidth = 576; // Largura máxima (80mm em pixels)
-    final img.Image resizedImage = img.copyResize(
-      originalImage,
-      width: maxWidth,
-      interpolation: img.Interpolation.linear, // Interpolação linear
-    );
-
-    // Converte para escala de cinza
-    // final img.Image grayscaleImage = img.grayscale(resizedImage);
-
-    // Aplica a binarização (threshold) para conversão em preto e branco
-    // final img.Image binarizedImage = applyThreshold(grayscaleImage, 128); // Threshold padrão de 128
-
-    // Salva a imagem binarizada no diretório `assets/saved`
-    await _saveImageInAssets(resizedImage);
-
-    // Adiciona a imagem processada à fila de impressão
-    bytes += generator.imageRaster(
-      resizedImage,
-      imageFn: PosImageFn.bitImageRaster,
-      highDensityVertical: true,
-      highDensityHorizontal: true,
-    );
-
-    // Corte e avanço do papel
-    bytes += generator.feed(2);
-    bytes += generator.cut();
-
-    // Envia os dados para a impressora
-    await service.printData(printer, bytes, longData: true);
+    final imageFile = File('assets/order.png').readAsBytesSync();
+    final originalImage = img.decodeImage(imageFile)!;
+    bytesScreen += generator.cut();
+    bytesScreen += generator.imageRaster(originalImage, highDensityVertical: true, highDensityHorizontal: true);
+    final b = testeImageRaster(originalImage);
+    await service.printData(printer, bytesScreen, longData: true);
   } catch (e) {
     print('Erro ao imprimir: $e');
   }
 }
 
-/// Salva a imagem no diretório "assets/saved" do seu projeto
 Future<void> _saveImageInAssets(img.Image image) async {
   try {
-    // Diretório onde a imagem será salva (subpasta do seu projeto)
     const String assetsSubPath = 'assets/saved';
 
-    // Cria o diretório, se não existir
     final Directory directory = Directory(assetsSubPath);
     if (!directory.existsSync()) {
-      directory.createSync(recursive: true); // Cria subdiretórios, se necessário
+      directory.createSync(recursive: true);
     }
 
-    // Nome único para o arquivo baseado no timestamp
     final String fileName = 'imagem_processada_${DateTime.now().millisecondsSinceEpoch}.png';
 
-    // Caminho completo onde o arquivo será salvo
     final String filePath = '${directory.path}/$fileName';
 
-    // Converte a imagem processada para bytes no formato PNG
     final List<int> encodedImage = img.encodePng(image);
 
-    // Salva a imagem como arquivo no disco
     final File file = File(filePath);
     await file.writeAsBytes(encodedImage);
 
@@ -428,4 +348,111 @@ Future<void> _saveImageInAssets(img.Image image) async {
   } catch (e) {
     print('Erro ao salvar a imagem no diretório assets/saved: $e');
   }
+}
+
+Future<List<int>> _generateDanfe() {
+  return XmlDanfeRawBytes().generate('assets/cupom.xml');
+}
+
+Widget receiptWidget(String printerType) {
+  return SizedBox(
+    width: 550,
+    child: Material(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Center(
+              child: Text(
+                'FLUTTER THERMAL PRINTER',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const Divider(thickness: 2),
+            const SizedBox(height: 10),
+            _buildReceiptRow('Item', 'Price'),
+            const Divider(),
+            _buildReceiptRow('Apple', '\$1.00'),
+            _buildReceiptRow('Banana', '\$0.50'),
+            _buildReceiptRow('Orange', '\$0.75'),
+            _buildReceiptRow('Grapes', '\$2.00'),
+            _buildReceiptRow('Watermelon', '\$3.00'),
+            _buildReceiptRow('Pineapple', '\$2.50'),
+            _buildReceiptRow('Strawberry', '\$1.50'),
+            _buildReceiptRow('Blueberry', '\$2.25'),
+            _buildReceiptRow('Mango', '\$1.75'),
+            _buildReceiptRow('Peach', '\$1.25'),
+            _buildReceiptRow('Plum', '\$1.00'),
+            _buildReceiptRow('Kiwi', '\$1.50'),
+            _buildReceiptRow('Papaya', '\$2.00'),
+            _buildReceiptRow('Cherry', '\$2.50'),
+            _buildReceiptRow('Pomegranate', '\$3.00'),
+            _buildReceiptRow('Lemon', '\$0.75'),
+            _buildReceiptRow('Lime', '\$0.50'),
+            _buildReceiptRow('Coconut', '\$2.00'),
+            _buildReceiptRow('Avocado', '\$1.50'),
+            _buildReceiptRow('Fig', '\$2.25'),
+            _buildReceiptRow('Guava', '\$1.75'),
+            _buildReceiptRow('Lychee', '\$2.50'),
+            _buildReceiptRow('Nectarine', '\$1.25'),
+            _buildReceiptRow('Passion Fruit', '\$2.00'),
+            _buildReceiptRow('Pear', '\$1.50'),
+            _buildReceiptRow('Raspberry', '\$2.75'),
+            _buildReceiptRow('Blackberry', '\$2.50'),
+            _buildReceiptRow('Cantaloupe', '\$3.00'),
+            _buildReceiptRow('Honeydew', '\$3.00'),
+            _buildReceiptRow('Tangerine', '\$1.00'),
+            _buildReceiptRow('Cranberry', '\$2.25'),
+            _buildReceiptRow('Dragon Fruit', '\$3.50'),
+            _buildReceiptRow('Durian', '\$5.00'),
+            _buildReceiptRow('Jackfruit', '\$4.00'),
+            _buildReceiptRow('Starfruit', '\$2.75'),
+            _buildReceiptRow('Mulberry', '\$2.50'),
+            _buildReceiptRow('Persimmon', '\$1.75'),
+            _buildReceiptRow('Quince', '\$2.00'),
+            _buildReceiptRow('Rambutan', '\$2.50'),
+            _buildReceiptRow('Soursop', '\$3.00'),
+            _buildReceiptRow('Tamarind', '\$1.50'),
+            _buildReceiptRow('Ugli Fruit', '\$2.75'),
+            _buildReceiptRow('Yuzu', '\$3.00'),
+            _buildReceiptRow('Zucchini', '\$1.25'),
+            _buildReceiptRow('Apricot', '\$1.50'),
+            _buildReceiptRow('Clementine', '\$1.00'),
+            _buildReceiptRow('Elderberry', '\$2.75'),
+            _buildReceiptRow('Gooseberry', '\$2.50'),
+            _buildReceiptRow('Huckleberry', '\$2.75'),
+            _buildReceiptRow('Jujube', '\$2.00'),
+            _buildReceiptRow('Kumquat', '\$1.75'),
+            _buildReceiptRow('Loquat', '\$2.25'),
+            _buildReceiptRow('Medlar', '\$2.50'),
+            _buildReceiptRow('Olive', '\$1.50'),
+            _buildReceiptRow('Pawpaw', '\$2.75'),
+            _buildReceiptRow('Salak', '\$3.00'),
+            _buildReceiptRow('Sapodilla', '\$2.50'),
+            _buildReceiptRow('Sorrel', '\$1.75'),
+            _buildReceiptRow('Tomato', '\$1.00'),
+            _buildReceiptRow('Uva', '\$2.25'),
+            _buildReceiptRow('Vanilla', '\$3.50'),
+            _buildReceiptRow('Walnut', '\$2.75'),
+            _buildReceiptRow('Xigua', '\$3.00'),
+            _buildReceiptRow('Yam', '\$1.50'),
+            _buildReceiptRow('Ziziphus', '\$2.75'),
+            const Divider(thickness: 2),
+            _buildReceiptRow('Total', '\$2.25', isBold: true),
+            const SizedBox(height: 20),
+            _buildReceiptRow('Printer Type', printerType),
+            const SizedBox(height: 50),
+            Center(
+              child: Text(
+                'Thank you for your purchase!',
+                style: GoogleFonts.robotoMono(fontSize: 16, color: Colors.black, fontStyle: FontStyle.italic),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
