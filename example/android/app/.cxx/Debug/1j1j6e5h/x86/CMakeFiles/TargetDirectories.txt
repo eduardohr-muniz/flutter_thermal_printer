@@ -1,0 +1,2 @@
+C:/projects/flutter_thermal_printer/example/android/app/.cxx/Debug/1j1j6e5h/x86/CMakeFiles/edit_cache.dir
+C:/projects/flutter_thermal_printer/example/android/app/.cxx/Debug/1j1j6e5h/x86/CMakeFiles/rebuild_cache.dir
