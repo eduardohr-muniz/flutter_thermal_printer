@@ -73,7 +73,10 @@ class FlutterThermalPrinter {
 
   Future<void> getPrinters({
     Duration refreshDuration = const Duration(seconds: 2),
-    List<ConnectionType> connectionTypes = const [ConnectionType.USB, ConnectionType.BLE],
+    List<ConnectionType> connectionTypes = const [
+      ConnectionType.USB,
+      ConnectionType.BLE
+    ],
     bool androidUsesFineLocation = false,
   }) async {
     if (Platform.isWindows) {
@@ -130,6 +133,7 @@ class FlutterThermalPrinter {
     int? customWidth,
     PaperSize paperSize = PaperSize.mm80,
     Generator? generator,
+    bool mirror = false,
   }) async {
     final controller = ScreenshotController();
     final image = await controller.captureFromLongWidget(widget, pixelRatio: View.of(context).devicePixelRatio, delay: delay);
@@ -151,6 +155,9 @@ class FlutterThermalPrinter {
     imagebytes = _buildImageRasterAvaliable(imagebytes!);
 
     imagebytes = img.grayscale(imagebytes);
+    if (mirror) {
+      imagebytes = img.flipHorizontal(imagebytes);
+    }
     final totalheight = imagebytes.height;
     final totalwidth = imagebytes.width;
     final timestoCut = totalheight ~/ 30;
@@ -197,6 +204,7 @@ class FlutterThermalPrinter {
     CapabilityProfile? profile,
     bool printOnBle = false,
     bool cutAfterPrinted = true,
+    bool mirror = false,
   }) async {
     // if (printOnBle == false && printer.connectionType == ConnectionType.BLE) {
     //   throw Exception(
@@ -215,6 +223,11 @@ class FlutterThermalPrinter {
       final ticket = Generator(paperSize, profile0);
       img.Image? imagebytes = img.decodeImage(image);
       imagebytes = _buildImageRasterAvaliable(imagebytes!);
+      imagebytes = img.grayscale(imagebytes);
+      if (mirror) {
+        imagebytes = img.flipHorizontal(imagebytes);
+      }
+
       final raster = ticket.imageRaster(
         imagebytes,
         imageFn: PosImageFn.bitImageRaster,
@@ -237,6 +250,10 @@ class FlutterThermalPrinter {
       final ticket = Generator(paperSize, profile0);
       img.Image? imagebytes = img.decodeImage(image);
       imagebytes = _buildImageRasterAvaliable(imagebytes!);
+      imagebytes = img.grayscale(imagebytes);
+      if (mirror) {
+        imagebytes = img.flipHorizontal(imagebytes);
+      }
       final totalheight = imagebytes.height;
       final totalwidth = imagebytes.width;
       final timestoCut = totalheight ~/ 30;
